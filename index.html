@@ -1,0 +1,353 @@
+<html><head><base href="https://websim.io/cyber-defense/">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全球網絡攻防戰場</title>
+<style>
+  body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Arial', sans-serif;
+    background-color: #0a0a1a;
+    color: #ffffff;
+    overflow: hidden;
+  }
+  #battlefield {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Equirectangular_projection_SW.jpg/1280px-Equirectangular_projection_SW.jpg');
+    background-size: cover;
+    background-position: center;
+  }
+  .team-panel {
+    position: absolute;
+    width: 250px;
+    padding: 15px;
+    border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+  }
+  #attackers {
+    top: 20px;
+    left: 20px;
+    border: 2px solid #ff4444;
+  }
+  #defenders {
+    top: 20px;
+    right: 20px;
+    border: 2px solid #4444ff;
+  }
+  h2 {
+    margin-top: 0;
+    text-align: center;
+    color: #ffffff;
+  }
+  .node {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .attacker-node {
+    background-color: rgba(255, 0, 0, 0.7);
+    box-shadow: 0 0 10px #ff0000;
+  }
+  .defender-node {
+    background-color: rgba(0, 0, 255, 0.7);
+    box-shadow: 0 0 10px #0000ff;
+  }
+  .info-panel {
+    position: absolute;
+    bottom: 20px;
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 10px;
+    width: 720px;
+    overflow: hidden;
+    transition: height 0.3s ease-in-out;
+  }
+  #attacker-info {
+    left: 20px;
+    height: 40px;
+  }
+  #defender-info {
+    right: 20px;
+    height: 40px;
+  }
+  .info-panel-header {
+    padding: 10px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  .info-panel-content {
+    padding: 15px;
+    display: none;
+  }
+  #attacker-info .info-panel-header {
+    background-color: rgba(255, 68, 68, 0.3);
+  }
+  #defender-info .info-panel-header {
+    background-color: rgba(68, 68, 255, 0.3);
+  }
+  .strategy-list {
+    text-align: left;
+    margin-top: 10px;
+    padding-left: 20px;
+  }
+  .attack-line {
+    position: absolute;
+    height: 2px;
+    background-color: red;
+    transform-origin: 0 0;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  @keyframes defense-pulse {
+    0% { transform: scale(1); opacity: 0.7; }
+    50% { transform: scale(1.5); opacity: 1; }
+    100% { transform: scale(1); opacity: 0.7; }
+  }
+  .defense-pulse {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 255, 0.5);
+    animation: defense-pulse 1s infinite;
+  }
+  .strategy-display {
+    margin-bottom: 10px;
+    font-size: 16px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+</style>
+</head>
+<body>
+  <div id="battlefield">
+    <div id="attackers" class="team-panel">
+      <h2>攻擊方</h2>
+      <p>目標：滲透防禦系統</p>
+      <p>活躍節點：<span id="attacker-count">0</span></p>
+      <div class="strategy-list">
+        <h3>攻擊策略：</h3>
+        <ul>
+          <li>社交工程</li>
+          <li>暴力破解</li>
+          <li>漏洞利用</li>
+          <li>DDoS攻擊</li>
+        </ul>
+      </div>
+    </div>
+    <div id="defenders" class="team-panel">
+      <h2>防守方</h2>
+      <p>目標：保護網絡安全</p>
+      <p>活躍節點：<span id="defender-count">0</span></p>
+      <div class="strategy-list">
+        <h3>防禦策略：</h3>
+        <ul>
+          <li>安全意識培訓</li>
+          <li>強密碼策略</li>
+          <li>系統補丁更新</li>
+          <li>流量監控與過濾</li>
+        </ul>
+      </div>
+    </div>
+    <div id="attacker-info" class="info-panel">
+      <div class="info-panel-header">攻擊方提示 (點擊展開)</div>
+      <div class="info-panel-content"></div>
+    </div>
+    <div id="defender-info" class="info-panel">
+      <div class="info-panel-header">防守方提示 (點擊展開)</div>
+      <div class="info-panel-content"></div>
+    </div>
+  </div>
+
+  <script>
+    const battlefield = document.getElementById('battlefield');
+    const attackerInfo = document.getElementById('attacker-info');
+    const defenderInfo = document.getElementById('defender-info');
+    const attackerCount = document.getElementById('attacker-count');
+    const defenderCount = document.getElementById('defender-count');
+
+    let attackers = 0;
+    let defenders = 0;
+
+    const attackStrategies = [
+      "社交工程：發送釣魚郵件，試圖獲取用戶憑證。",
+      "暴力破解：利用字典攻擊嘗試猜測弱密碼。",
+      "漏洞利用：掃描並利用已知的軟件漏洞進行入侵。",
+      "DDoS攻擊：發起分佈式拒絕服務攻擊，使系統癱瘓。"
+    ];
+
+    const defenseStrategies = [
+      "安全意識培訓：定期對員工進行網絡安全培訓，提高警惕性。",
+      "強密碼策略：實施複雜的密碼要求，並使用雙因素認證。",
+      "系統補丁更新：及時更新所有系統和軟件，修復已知漏洞。",
+      "流量監控與過濾：部署入侵檢測系統，識別和阻止可疑活動。"
+    ];
+
+    // 設置折疊面板的點擊事件
+    document.querySelectorAll('.info-panel-header').forEach(header => {
+      header.addEventListener('click', () => {
+        const panel = header.parentElement;
+        const content = panel.querySelector('.info-panel-content');
+        if (panel.style.height === '240px') {
+          panel.style.height = '40px';
+          content.style.display = 'none';
+        } else {
+          panel.style.height = '240px';
+          content.style.display = 'block';
+        }
+      });
+    });
+
+    function createNode(type) {
+      const node = document.createElement('div');
+      node.className = `node ${type}-node`;
+      node.style.left = `${Math.random() * 90 + 5}%`;
+      node.style.top = `${Math.random() * 90 + 5}%`;
+
+      node.addEventListener('click', () => showInfo(type));
+
+      battlefield.appendChild(node);
+
+      if (type === 'attacker') {
+        attackers++;
+        attackerCount.textContent = attackers;
+      } else {
+        defenders++;
+        defenderCount.textContent = defenders;
+      }
+
+      return node;
+    }
+
+    function showInfo(type) {
+      let strategies = type === 'attacker' ? attackStrategies : defenseStrategies;
+      let strategy = strategies[Math.floor(Math.random() * strategies.length)];
+      displayStrategyInfo(strategy, type);
+    }
+
+    function displayStrategyInfo(strategy, type) {
+      const strategyDisplay = document.createElement('div');
+      strategyDisplay.className = 'strategy-display';
+      strategyDisplay.textContent = strategy;
+      strategyDisplay.style.color = type === 'attacker' ? '#ff4444' : '#4444ff';
+      
+      const infoPanel = type === 'attacker' ? attackerInfo : defenderInfo;
+      const content = infoPanel.querySelector('.info-panel-content');
+      
+      content.insertBefore(strategyDisplay, content.firstChild);
+      
+      if (content.children.length > 5) {
+        content.removeChild(content.lastChild);
+      }
+
+      // 如果面板是收起狀態，自動展開
+      if (infoPanel.style.height !== '240px') {
+        infoPanel.style.height = '240px';
+        content.style.display = 'block';
+      }
+    }
+
+    function spawnNodes() {
+      if (Math.random() > 0.5 && attackers < 10) {
+        createNode('attacker');
+      } else if (defenders < 10) {
+        createNode('defender');
+      }
+      setTimeout(spawnNodes, Math.random() * 3000 + 1000);
+    }
+
+    function startAttack(attackerNode) {
+      const defenderNodes = document.querySelectorAll('.defender-node');
+      if (defenderNodes.length === 0) return;
+
+      const targetNode = defenderNodes[Math.floor(Math.random() * defenderNodes.length)];
+      
+      const line = document.createElement('div');
+      line.className = 'attack-line';
+      
+      const attackerRect = attackerNode.getBoundingClientRect();
+      const targetRect = targetNode.getBoundingClientRect();
+      
+      const angle = Math.atan2(targetRect.top - attackerRect.top, targetRect.left - attackerRect.left);
+      const distance = Math.sqrt(Math.pow(targetRect.left - attackerRect.left, 2) + Math.pow(targetRect.top - attackerRect.top, 2));
+      
+      line.style.width = `${distance}px`;
+      line.style.transform = `rotate(${angle}rad)`;
+      line.style.left = `${attackerRect.left + attackerRect.width / 2}px`;
+      line.style.top = `${attackerRect.top + attackerRect.height / 2}px`;
+      
+      battlefield.appendChild(line);
+      
+      setTimeout(() => {
+        line.style.opacity = '1';
+      }, 10);
+      
+      setTimeout(() => {
+        line.style.opacity = '0';
+        setTimeout(() => {
+          battlefield.removeChild(line);
+        }, 500);
+      }, 1000);
+
+      const attackStrategy = attackStrategies[Math.floor(Math.random() * attackStrategies.length)];
+      displayStrategyInfo(attackStrategy, 'attacker');
+
+      startDefense(targetNode);
+    }
+
+    function startDefense(defenderNode) {
+      const pulse = document.createElement('div');
+      pulse.className = 'defense-pulse';
+      
+      const rect = defenderNode.getBoundingClientRect();
+      pulse.style.left = `${rect.left - 5}px`;
+      pulse.style.top = `${rect.top - 5}px`;
+      
+      battlefield.appendChild(pulse);
+      
+      setTimeout(() => {
+        battlefield.removeChild(pulse);
+      }, 3000);
+
+      const defenseStrategy = defenseStrategies[Math.floor(Math.random() * defenseStrategies.length)];
+      displayStrategyInfo(defenseStrategy, 'defender');
+    }
+
+    function simulateBattle() {
+      const attackerNodes = document.querySelectorAll('.attacker-node');
+      attackerNodes.forEach(node => {
+        if (Math.random() < 0.3) {  // 30% chance to start an attack
+          startAttack(node);
+        }
+      });
+      
+      setTimeout(simulateBattle, 2000);  // Run every 2 seconds
+    }
+
+    spawnNodes();
+    simulateBattle();
+
+    function pulseNodes() {
+      const nodes = document.querySelectorAll('.node');
+      nodes.forEach(node => {
+        node.animate([
+          { transform: 'scale(1)' },
+          { transform: 'scale(1.2)' },
+          { transform: 'scale(1)' }
+        ], {
+          duration: 2000,
+          iterations: Infinity
+        });
+      });
+    }
+
+    setInterval(pulseNodes, 100);
+  </script>
+</body>
+</html>
